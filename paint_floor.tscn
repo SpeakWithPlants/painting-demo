@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://bj5xbukxauaxa"]
+
+[ext_resource type="Script" uid="uid://tnrplkghntxe" path="res://paint_floor.gd" id="1_k8j6y"]
+
+[node name="PaintFloor" type="Node2D"]
+rotation = 0.00017044798
+script = ExtResource("1_k8j6y")
