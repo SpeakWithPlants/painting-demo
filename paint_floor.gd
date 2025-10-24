@@ -42,7 +42,7 @@ func _handle_input():
 		if last_mouse_pos.distance_squared_to(mouse_pos) < 1:
 			return
 		var paint_color: Color = paint_colors[paint_color_idx]
-		_paint_segment2(last_mouse_pos, mouse_pos, paint_color)
+		_paint_segment3(last_mouse_pos, mouse_pos, paint_color)
 	elif Input.is_action_just_pressed("mouse_right"):
 		paint_color_idx = (paint_color_idx + 1) % paint_colors.size()
 	elif Input.is_action_just_pressed("ui_accept"):
@@ -51,9 +51,40 @@ func _handle_input():
 
 
 # Optimized solution:
-# Drawing circles over the length of the segment covered by the mouse in one frame results in
-# a large portion of the iterated pixels being repeated (i.e. unnecessary). This is slow.
-# Instead, iterate once over the smallest possible bounding box of the segment and color pixels
+# Perform a linear transformation on the incoming coordinates so that the midpoint between
+# start_pos and end_pos is centered on the origin and parallel with the x-axis, then paint a
+# capsule onto the transformed coordinates.
+func _paint_segment3(start_pos: Vector2, end_pos: Vector2, paint_color: Color):
+	var theta = start_pos.angle_to_point(end_pos)
+	var s = brush_radius * Vector2.ONE
+	var c1 = start_pos.min(end_pos) - s
+	var c2 = start_pos.max(end_pos) + s
+	var seg_dist = start_pos.distance_to(end_pos)
+	var midpoint = (start_pos + end_pos) / 2
+	for x in range(c1.x, c2.x):
+		for y in range(c1.y, c2.y):
+			if x < 0 or x > paint_image.get_width():
+				continue
+			if y < 0 or y > paint_image.get_height():
+				continue
+			var current_color = paint_image.get_pixel(x, y)
+			if paint_color == current_color:
+				continue
+			# Linear transformation
+			var tx = x - midpoint.x
+			var ty = y - midpoint.y
+			var ax = tx * cos(theta) + ty * sin(theta)
+			var ay = tx * sin(theta) - ty * cos(theta)
+			var dist = _distance_to_capsule(seg_dist, ax, ay)
+			# Use the distance to the transformed capsule to determine the alpha of the pixels
+			var alpha = clamp(inverse_lerp(brush_radius + 1, brush_radius, dist), 0.0, 1.0)
+			paint_color.a = alpha
+			var blend_color = current_color.blend(paint_color)
+			paint_image.set_pixel(x, y, blend_color)
+	pass
+
+
+# Iterate once over the smallest possible bounding box of the segment and color pixels
 # according to their distance to the segment.  Then, draw two circles on the ends to round it off.
 func _paint_segment2(start_pos: Vector2, end_pos: Vector2, paint_color: Color):
 	var theta = start_pos.angle_to_point(end_pos)
@@ -80,6 +111,8 @@ func _paint_segment2(start_pos: Vector2, end_pos: Vector2, paint_color: Color):
 	pass
 
 
+# Iterate over each pixel of the line segment and draw a circle of brush radius
+# centered on that pixel.
 func _paint_segment(start_pos: Vector2, end_pos: Vector2, paint_color: Color):
 	var c1 = start_pos.min(end_pos)
 	var c2 = start_pos.max(end_pos)
@@ -120,6 +153,28 @@ func _paint_circle(center_pos, paint_color):
 			var blend_color = current_color.blend(paint_color)
 			paint_image.set_pixel(x, y, blend_color)
 	pass
+
+
+# unused
+func _is_in_capsule(dist: float, x: float, y: float) -> bool:
+	var half_dist = dist / 2
+	var y_dist_fac = sqrt(brush_radius * brush_radius - y * y)
+	var x_min_fac = x - half_dist - y_dist_fac
+	var x_max_fac = x + half_dist + y_dist_fac
+	var y_min_rad = y - brush_radius
+	var y_max_rad = y + brush_radius
+	var capsule = x_min_fac * x_max_fac * y_min_rad * y_max_rad
+	return capsule >= 0
+
+
+func _distance_to_capsule(seg_dist: float, x: float, y: float) -> float:
+	var half_seg_dist = seg_dist / 2
+	if abs(x) >= half_seg_dist:
+		var half_seg = Vector2.RIGHT * half_seg_dist
+		var left_dist = Vector2(x, y).distance_to(-half_seg)
+		var right_dist = Vector2(x, y).distance_to(half_seg)
+		return min(left_dist, right_dist)
+	return abs(y)
 
 
 func _distance_to_line(c1, c2, px, py) -> float:
