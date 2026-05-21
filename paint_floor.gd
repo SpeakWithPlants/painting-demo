@@ -2,8 +2,9 @@ extends Node2D
 
 @export var background_color: Color = Color.ALICE_BLUE
 @export var paint_color_idx: int = 0
+@export var paint_surface: SubViewportContainer
 
-const paint_colors = [Color.CRIMSON, Color.CORAL, Color(1.0, 0.8, 0.2, 1), Color.MEDIUM_SEA_GREEN, Color.DODGER_BLUE, Color.PURPLE];
+const paint_colors = [Color.CRIMSON, Color.CORAL, Color(1.0, 0.8, 0.2, 1), Color.MEDIUM_SEA_GREEN, Color(0.12, 0.56, 0.95, 1), Color.PURPLE];
 const brush_radius = 30.0
 
 var paint_image: Image
@@ -13,8 +14,7 @@ var last_mouse_pos: Vector2
 
 
 func _ready() -> void:
-	paint_image = Image.create_empty(1920, 1080, true, Image.FORMAT_RGBA8)
-	paint_texture = ImageTexture.create_from_image(paint_image)
+	_reset_canvas()
 	mouse_pos = get_local_mouse_position()
 	last_mouse_pos = mouse_pos
 	pass
@@ -23,30 +23,46 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	queue_redraw()
 	_handle_input()
+	if paint_surface != null:
+		paint_texture.update(paint_image)
+		paint_surface.material.set_shader_parameter("paint_texture", paint_texture)
 	pass
 
 
 func _draw() -> void:
 	draw_rect(get_viewport_rect(), background_color)
 	paint_texture.update(paint_image)
-	draw_texture(paint_texture, Vector2.ZERO)
+	#draw_texture(paint_texture, Vector2.ZERO)
+	$TextureRect.texture = paint_texture
 	var paint_color: Color = paint_colors[paint_color_idx]
-	draw_circle(mouse_pos, brush_radius, paint_color, true, -1.0, true)
+	draw_circle(mouse_pos, brush_radius, paint_color)
+	pass
+
+
+func _reset_canvas():
+	paint_image = Image.create_empty(640, 360, true, Image.FORMAT_RGBA8)
+	paint_texture = ImageTexture.create_from_image(paint_image)
 	pass
 
 
 func _handle_input():
-	last_mouse_pos = mouse_pos
-	mouse_pos = get_local_mouse_position()
+	_update_mouse_pos()
 	if Input.is_action_pressed("mouse_left"):
-		if last_mouse_pos.distance_squared_to(mouse_pos) < 1:
-			return
 		var paint_color: Color = paint_colors[paint_color_idx]
-		_paint_segment3(last_mouse_pos, mouse_pos, paint_color)
+		if last_mouse_pos.distance_squared_to(mouse_pos) < 1:
+			_paint_circle(mouse_pos, paint_color)
+		else:
+			_paint_segment3(last_mouse_pos, mouse_pos, paint_color)
 	elif Input.is_action_just_pressed("mouse_right"):
 		paint_color_idx = (paint_color_idx + 1) % paint_colors.size()
 	elif Input.is_action_just_pressed("ui_accept"):
-		paint_image = Image.create_empty(1920, 1080, true, Image.FORMAT_RGBA8)
+		_reset_canvas()
+	pass
+
+
+func _update_mouse_pos():
+	last_mouse_pos = mouse_pos
+	mouse_pos = get_local_mouse_position()
 	pass
 
 
@@ -56,16 +72,16 @@ func _handle_input():
 # capsule onto the transformed coordinates.
 func _paint_segment3(start_pos: Vector2, end_pos: Vector2, paint_color: Color):
 	var theta = start_pos.angle_to_point(end_pos)
-	var s = brush_radius * Vector2.ONE
+	var s = (brush_radius + 1) * Vector2.ONE
 	var c1 = start_pos.min(end_pos) - s
 	var c2 = start_pos.max(end_pos) + s
 	var seg_dist = start_pos.distance_to(end_pos)
 	var midpoint = (start_pos + end_pos) / 2
 	for x in range(c1.x, c2.x):
 		for y in range(c1.y, c2.y):
-			if x < 0 or x > paint_image.get_width():
+			if x < 0 or x >= paint_image.get_width():
 				continue
-			if y < 0 or y > paint_image.get_height():
+			if y < 0 or y >= paint_image.get_height():
 				continue
 			var current_color = paint_image.get_pixel(x, y)
 			if paint_color == current_color:
@@ -78,9 +94,14 @@ func _paint_segment3(start_pos: Vector2, end_pos: Vector2, paint_color: Color):
 			var dist = _distance_to_capsule(seg_dist, ax, ay)
 			# Use the distance to the transformed capsule to determine the alpha of the pixels
 			var alpha = clamp(inverse_lerp(brush_radius + 1, brush_radius, dist), 0.0, 1.0)
-			paint_color.a = alpha
-			var blend_color = current_color.blend(paint_color)
-			paint_image.set_pixel(x, y, blend_color)
+			paint_color.a = 1.0 if (alpha >= 0.5) else 0.0 # lock to full alpha or transparent
+			if paint_color.a > 0.0:
+				var final_color
+				if paint_color.a < 1.0:
+					final_color = current_color.blend(paint_color)
+				else:
+					final_color = paint_color
+				paint_image.set_pixel(x, y, final_color)
 	pass
 
 
@@ -149,9 +170,14 @@ func _paint_circle(center_pos, paint_color):
 			if dist > brush_radius + 1:
 				continue
 			var alpha = clamp(inverse_lerp(brush_radius + 1, brush_radius, dist), 0.0, 1.0)
-			paint_color.a = alpha
-			var blend_color = current_color.blend(paint_color)
-			paint_image.set_pixel(x, y, blend_color)
+			paint_color.a = 1.0 if (alpha > 0.5) else 0.0 # lock to full alpha or transparent
+			if paint_color.a > 0.0:
+				var final_color
+				if paint_color.a < 1.0:
+					final_color = current_color.blend(paint_color)
+				else:
+					final_color = paint_color
+				paint_image.set_pixel(x, y, final_color)
 	pass
 
 

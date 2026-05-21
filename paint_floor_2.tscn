@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://xv5e4hf33xw7"]
+
+[ext_resource type="Script" uid="uid://ecsarolhcvub" path="res://paint_floor_2.gd" id="1_2mc80"]
+
+[node name="PaintFloor2" type="Node2D" unique_id=2041900154]
+script = ExtResource("1_2mc80")

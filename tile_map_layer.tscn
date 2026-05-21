@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://csg1jkr1aw8e1"]
+
+[ext_resource type="PackedScene" uid="uid://daken6jowqvtx" path="res://tile.tscn" id="1_c11d0"]
+[ext_resource type="Script" uid="uid://cgon3iiujydei" path="res://tile_map_layer.gd" id="2_737mf"]
+
+[sub_resource type="TileSetScenesCollectionSource" id="TileSetScenesCollectionSource_737mf"]
+scenes/1/scene = ExtResource("1_c11d0")
+
+[sub_resource type="TileSet" id="TileSet_qdsla"]
+tile_size = Vector2i(32, 32)
+sources/0 = SubResource("TileSetScenesCollectionSource_737mf")
+
+[node name="FloorTilemapLayer" type="TileMapLayer" unique_id=1846823555]
+tile_set = SubResource("TileSet_qdsla")
+script = ExtResource("2_737mf")

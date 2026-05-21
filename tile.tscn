@@ -1,0 +1,32 @@
+[gd_scene format=3 uid="uid://daken6jowqvtx"]
+
+[ext_resource type="Script" uid="uid://bnxoahuj41bdk" path="res://tile.gd" id="1_g0h1x"]
+[ext_resource type="Texture2D" uid="uid://dlae75y043pol" path="res://tiles.png" id="2_a2t34"]
+[ext_resource type="PackedScene" uid="uid://dk72rdl6sbf5d" path="res://hitbox_component.tscn" id="3_0bojl"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_chb5y"]
+size = Vector2(32, 32)
+
+[node name="Tile" type="Node2D" unique_id=1953997172]
+z_index = -1
+script = ExtResource("1_g0h1x")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=46946514]
+texture = ExtResource("2_a2t34")
+hframes = 17
+
+[node name="Components" type="Node2D" parent="." unique_id=1002207797]
+visible = false
+
+[node name="HitboxComponent" parent="Components" unique_id=489199570 node_paths=PackedStringArray("root_node") instance=ExtResource("3_0bojl")]
+root_node = NodePath("../..")
+
+[node name="Area2D" parent="Components/HitboxComponent" index="0" unique_id=493080318]
+collision_mask = 6
+
+[node name="CollisionShape2D" parent="Components/HitboxComponent/Area2D" index="0" unique_id=1875980114]
+shape = SubResource("RectangleShape2D_chb5y")
+
+[connection signal="mouse_entered" from="Components/HitboxComponent/Area2D" to="." method="_on_area_2d_mouse_entered"]
+
+[editable path="Components/HitboxComponent"]
