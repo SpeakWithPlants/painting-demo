@@ -1,69 +1,45 @@
-extends Node2D
+extends SubViewportContainer
 
-const paint_colors : Array[Color] = [Color.CRIMSON, Color.CORAL, Color(1.0, 0.8, 0.2, 1), Color.MEDIUM_SEA_GREEN, Color(0.12, 0.56, 0.95, 1), Color.PURPLE];
+const paint_colors : Array[Color] = [
+	Color("f63f5b"),
+	Color("ff975b"),
+	Color("ffce59"),
+	Color("81d768"),
+	Color("6dacff"),
+	Color("ab70ff")
+];
 const brush_radius : int = 10
 const scaling_factor : float = 1.0
 
-@export var paint_color_idx : int = 0
-@export var paint_surface : Node2D = get_parent()
+@export var surface_node : TileMapLayer
 
 var mouse_pos : Vector2
 var last_mouse_pos : Vector2
 var paint_image : Image
-var paint_texture : ImageTexture
-var output_texture : ImageTexture
+var paint_color_idx : int = 0
 
 
 func _ready() -> void:
-	mouse_pos = get_local_mouse_position()
+	mouse_pos = get_global_mouse_position() / stretch_shrink
 	last_mouse_pos = mouse_pos
+	if surface_node == null:
+		assert(false, "Surface node must not be null")
 	_reset_canvas()
 	pass
 
 
 func _process(_delta: float) -> void:
-	queue_redraw()
 	_handle_input()
-	#_push_texture()
-	pass
-
-
-func _draw() -> void:
-	var output_image = paint_image.duplicate()
-	output_image.resize(1920, 1080, Image.INTERPOLATE_NEAREST)
-	output_texture = ImageTexture.create_from_image(output_image)
-	draw_texture(output_texture, Vector2.ZERO)
-	pass
-
-
-func _push_texture() -> void:
-	#var output_image = paint_image.duplicate()
-	#output_image.resize(1920, 1080, Image.INTERPOLATE_NEAREST)
-	#output_texture = ImageTexture.create_from_image(output_image)
-	var surface : ShaderMaterial = paint_surface.material
-	var texture : ImageTexture = surface.get_shader_parameter("paint_texture")
-	texture.update(paint_image)
-	surface.set_shader_parameter("paint_texture", texture)
-	pass
-
-
-func _update_mouse_pos() -> void:
-	last_mouse_pos = mouse_pos
-	mouse_pos = get_local_mouse_position() / scaling_factor
-	pass
-
-
-func _reset_canvas():
-	var width = 1920 / scaling_factor
-	var height = 1080 / scaling_factor
-	paint_image = Image.create_empty(width, height, true, Image.FORMAT_RGBA8)
-	paint_texture = ImageTexture.create_from_image(paint_image)
-	#paint_surface.material.set_shader_parameter("paint_texture", texture)
+	var resized_image = paint_image.duplicate()
+	resized_image.resize(1920, 1080, Image.INTERPOLATE_NEAREST)
+	var paint_texture = ImageTexture.create_from_image(resized_image)
+	material.set_shader_parameter("paint_texture", paint_texture)
 	pass
 
 
 func _handle_input() -> void:
-	_update_mouse_pos()
+	last_mouse_pos = mouse_pos
+	mouse_pos = get_global_mouse_position() / stretch_shrink
 	if Input.is_action_pressed("mouse_left"):
 		var paint_color : Color = paint_colors[paint_color_idx]
 		if last_mouse_pos.distance_squared_to(mouse_pos) < 1:
@@ -74,8 +50,8 @@ func _handle_input() -> void:
 			pass
 	elif Input.is_action_just_pressed("mouse_right"):
 		paint_color_idx = (paint_color_idx + 1) % paint_colors.size()
-	elif Input.is_action_just_pressed("ui_accept"):
-		_reset_canvas()
+	#elif Input.is_action_just_pressed("ui_accept"):
+		#_reset_canvas()
 	pass
 
 
@@ -144,3 +120,8 @@ func _distance_to_capsule(seg_dist: float, x: float, y: float) -> float:
 		var right_dist = Vector2(x, y).distance_to(half_seg)
 		return min(left_dist, right_dist)
 	return abs(y)
+
+
+func _reset_canvas():
+	paint_image = Image.create_empty(640, 360, true, Image.FORMAT_RGBA8)
+	pass
